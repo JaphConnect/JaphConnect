@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Japh Mak Voice Connect</title>
+<style>
+/* Global */
+body {margin:0; font-family:'Segoe UI', Arial, sans-serif; background:#0d0d0d; color:#fff; text-align:center;}
+header {background:#1a1a1a; padding:18px; font-size:22px; font-weight:bold; border-bottom:3px solid #4CAF50; color:#4CAF50;}
+main {padding:12px;}
+button {margin:8px 0; padding:14px; border:none; border-radius:14px; background:#4CAF50; color:white; font-size:16px; width:90%; max-width:320px; cursor:pointer; transition:0.2s;}
+button:hover {background:#45a049;}
+textarea {width:90%; max-width:320px; height:90px; margin:6px 0; border-radius:12px; border:none; padding:10px; font-size:14px;}
+.card {background:#222; border-radius:18px; padding:16px; margin:12px auto; max-width:350px; box-shadow:0 6px 12px rgba(0,0,0,0.5);}
+.status {margin:10px 0; font-size:14px; color:#bbb;}
+.footer {margin-top:18px; font-size:12px; color:#666;}
+</style>
+</head>
+<body>
+
+<header>🎤 Japh Mak Voice Connect</header>
+
+<main>
+  <div class="card">
+    <button id="startMic">🎙 Activer Micro</button>
+    <button id="muteBtn" disabled>🔇 Mute / Unmute</button>
+    <div class="status" id="micStatus">Micro inactif</div>
+  </div>
+
+  <div class="card">
+    <h3>Créer une offre</h3>
+    <button id="createOffer">📤 Générer l’offre</button>
+    <textarea id="offer" readonly></textarea>
+    <button onclick="copyText('offer')">📋 Copier l’offre</button>
+  </div>
+
+  <div class="card">
+    <h3>Réponse</h3>
+    <textarea id="answer"></textarea>
+    <button id="createAnswer">📥 Générer la réponse</button>
+    <button onclick="copyText('answer')">📋 Copier la réponse</button>
+    <button id="connectBtn">🔗 Connecter</button>
+  </div>
+</main>
+
+<div class="footer">© 2025 Japh Mak</div>
+
+<script>
+let pc, localStream;
+
+async function initPC() {
+  pc = new RTCPeerConnection();
+  pc.onicecandidate = e => {
+    if(e.candidate) return;
+    document.getElementById("offer").value = JSON.stringify(pc.localDescription);
+  };
+  pc.ontrack = e => {
+    const audio = document.createElement("audio");
+    audio.srcObject = e.streams[0];
+    audio.autoplay = true;
+  };
+}
+
+const startMic = document.getElementById("startMic");
+const muteBtn = document.getElementById("muteBtn");
+const micStatus = document.getElementById("micStatus");
+const offer = document.getElementById("offer");
+const answer = document.getElementById("answer");
+const createOffer = document.getElementById("createOffer");
+const createAnswer = document.getElementById("createAnswer");
+const connectBtn = document.getElementById("connectBtn");
+
+startMic.onclick = async ()=>{
+  localStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  micStatus.textContent = "🎙 Micro actif";
+  muteBtn.disabled = false;
+  await initPC();
+  localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+};
+
+muteBtn.onclick = ()=>{
+  localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
+  micStatus.textContent = localStream.getAudioTracks()[0].enabled ? "🎙 Micro actif" : "🔇 Micro coupé";
+};
+
+createOffer.onclick = async ()=>{
+  const offerDesc = await pc.createOffer();
+  await pc.setLocalDescription(offerDesc);
+  offer.value = JSON.stringify(offerDesc);
+};
+
+createAnswer.onclick = async ()=>{
+  if(!pc) await initPC();
+  const remoteDesc = JSON.parse(offer.value);
+  await pc.setRemoteDescription(remoteDesc);
+  const answerDesc = await pc.createAnswer();
+  await pc.setLocalDescription(answerDesc);
+  answer.value = JSON.stringify(answerDesc);
+};
+
+connectBtn.onclick = async ()=>{
+  const remoteDesc = JSON.parse(answer.value);
+  await pc.setRemoteDescription(remoteDesc);
+  micStatus.textContent = "🔗 Connecté ✅";
+};
+
+function copyText(id) {
+  const el = document.getElementById(id);
+  el.select();
+  document.execCommand("copy");
+  alert("Copié !");
+}
+</script>
+
+</body>
+</html>
